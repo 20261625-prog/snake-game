@@ -2,136 +2,43 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>심플 뱀 게임 (Snake Game)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>귀여운 뱀 게임</title>
     <style>
         body {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #2c3e50;
-            color: white;
-            font-family: Arial, sans-serif;
             flex-direction: column;
+            align-items: center;
+            background-color: #ffeaa7; /* 귀여운 파스텔 노랑 배경 */
+            color: #2d3436;
+            font-family: 'Comic Sans MS', 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 20px 0;
+            height: 100vh;
+            box-sizing: border-box;
         }
-        canvas {
-            border: 5px solid #ecf0f1;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            background-color: #000;
-        }
-        .info {
-            margin-bottom: 10px;
+        .header {
             text-align: center;
+            margin-bottom: 15px;
         }
-        h1 { margin: 10px; }
-    </style>
-</head>
-<body>
-
-    <div class="info">
-        <h1>SNAKE GAME</h1>
-        <p>점수: <span id="score">0</span></p>
-    </div>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const scoreElement = document.getElementById("score");
-
-        const box = 20; // 그리드 한 칸의 크기
-        let score = 0;
-        let gameSpeed = 100;
-
-        // 뱀 초기 위치 (중앙)
-        let snake = [{x: 9 * box, y: 10 * box}];
-
-        // 먹이 초기 위치
-        let food = {
-            x: Math.floor(Math.random() * 19 + 1) * box,
-            y: Math.floor(Math.random() * 19 + 1) * box
-        };
-
-        let d; // 방향
-
-        // 키보드 입력 이벤트
-        document.addEventListener("keydown", direction);
-
-        function direction(event) {
-            let key = event.keyCode;
-            if(key == 37 && d != "RIGHT") d = "LEFT";
-            else if(key == 38 && d != "DOWN") d = "UP";
-            else if(key == 39 && d != "LEFT") d = "RIGHT";
-            else if(key == 40 && d != "UP") d = "DOWN";
+        h1 { margin: 0 0 10px 0; font-size: 28px; color: #ff7675; }
+        .score-board { font-size: 20px; font-weight: bold; background: white; padding: 5px 15px; border-radius: 20px; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .difficulty-btns {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
         }
-
-        // 충돌 체크 함수
-        function collision(head, array) {
-            for(let i = 0; i < array.length; i++) {
-                if(head.x == array[i].x && head.y == array[i].y) return true;
-            }
-            return false;
+        .diff-btn {
+            padding: 8px 16px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
         }
-
-        // 메인 그리기 함수
-        function draw() {
-            // 배경 그리기
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // 뱀 그리기
-            for(let i = 0; i < snake.length; i++) {
-                ctx.fillStyle = (i == 0) ? "#2ecc71" : "#27ae60"; // 머리는 밝은 녹색
-                ctx.fillRect(snake[i].x, snake[i].y, box, box);
-                
-                ctx.strokeStyle = "black";
-                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
-            }
-
-            // 먹이 그리기
-            ctx.fillStyle = "#e74c3c";
-            ctx.fillRect(food.x, food.y, box, box);
-
-            // 이전 머리 위치
-            let snakeX = snake[0].x;
-            let snakeY = snake[0].y;
-
-            // 방향에 따른 이동
-            if( d == "LEFT") snakeX -= box;
-            if( d == "UP") snakeY -= box;
-            if( d == "RIGHT") snakeX += box;
-            if( d == "DOWN") snakeY += box;
-
-            // 먹이를 먹었을 때
-            if(snakeX == food.x && snakeY == food.y) {
-                score++;
-                scoreElement.innerHTML = score;
-                food = {
-                    x: Math.floor(Math.random() * 19 + 1) * box,
-                    y: Math.floor(Math.random() * 19 + 1) * box
-                };
-                // 먹이를 먹으면 꼬리를 제거하지 않음 (길어짐)
-            } else {
-                // 먹이를 못 먹었으면 꼬리 제거
-                snake.pop();
-            }
-
-            // 새로운 머리 추가
-            let newHead = { x: snakeX, y: snakeY };
-
-            // 게임 오버 조건: 벽 충돌 또는 자기 몸 충돌
-            if(snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height || collision(newHead, snake)) {
-                clearInterval(game);
-                alert("게임 오버! 최종 점수: " + score);
-                location.reload(); // 페이지 새로고침으로 게임 재시작
-            }
-
-            snake.unshift(newHead);
-        }
-
-        // 0.1초마다 draw 함수 실행
-        let game = setInterval(draw, gameSpeed);
-    </script>
-</body>
-</html>
+        .diff-btn:active { transform: scale(0.95); }
+        .btn-easy { background-color: #55efc4; color: #2d3436; }
+        .btn
