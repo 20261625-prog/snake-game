@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>귀여운 뱀 게임</title>
+    <title>업그레이드 뱀 게임</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #ffeaa7; /* 귀여운 파스텔 노랑 배경 */
-            color: #2d3436;
-            font-family: 'Comic Sans MS', 'Malgun Gothic', sans-serif;
+            background-color: #1a1a2e;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px 0;
             height: 100vh;
@@ -19,26 +19,220 @@
         }
         .header {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
-        h1 { margin: 0 0 10px 0; font-size: 28px; color: #ff7675; }
-        .score-board { font-size: 20px; font-weight: bold; background: white; padding: 5px 15px; border-radius: 20px; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1 { margin: 0 0 10px 0; font-size: 24px; color: #e94560; }
+        .score-board { font-size: 18px; font-weight: bold; }
         
-        .difficulty-btns {
-            margin-bottom: 15px;
-            display: flex;
-            gap: 10px;
+        #game-container {
+            position: relative;
         }
-        .diff-btn {
-            padding: 8px 16px;
+        canvas {
+            background-color: #16213e;
+            border: 4px solid #0f3460;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        
+        /* 게임 오버 화면 */
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+        }
+        #game-over h2 { color: #e94560; margin-bottom: 10px; }
+        button {
+            padding: 10px 20px;
             font-size: 16px;
             font-weight: bold;
+            color: white;
+            background-color: #e94560;
             border: none;
-            border-radius: 20px;
+            border-radius: 5px;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.1s;
+            transition: background 0.2s;
         }
-        .diff-btn:active { transform: scale(0.95); }
-        .btn-easy { background-color: #55efc4; color: #2d3436; }
-        .btn
+        button:hover { background-color: #c81d49; }
+
+        /* 모바일 방향키 컨트롤러 */
+        .controls {
+            display: grid;
+            grid-template-columns: 50px 50px 50px;
+            grid-template-rows: 50px 50px 50px;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .control-btn {
+            background-color: #0f3460;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            user-select: none;
+        }
+        .control-btn:active { background-color: #e94560; }
+        .up { grid-column: 2; grid-row: 1; }
+        .left { grid-column: 1; grid-row: 2; }
+        .right { grid-column: 3; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 3; }
+
+        /* PC 화면에서는 모바일 버튼 숨기기 */
+        @media (min-width: 600px) {
+            .controls { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>스네이크 모험</h1>
+        <div class="score-board">점수: <span id="score">0</span></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="300" height="300"></canvas>
+        <div id="game-over">
+            <h2>게임 오버!</h2>
+            <p>최종 점수: <span id="final-score">0</span></p>
+            <button onclick="resetGame()">다시 하기</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-btn up" onclick="changeDirection('UP')">⬆️</div>
+        <div class="control-btn left" onclick="changeDirection('LEFT')">⬅️</div>
+        <div class="control-btn right" onclick="changeDirection('RIGHT')">➡️</div>
+        <div class="control-btn down" onclick="changeDirection('DOWN')">⬇️</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const gameOverScreen = document.getElementById("game-over");
+        const finalScoreElement = document.getElementById("final-score");
+
+        const box = 15; // 그리드 크기
+        const canvasSize = 300;
+        let score = 0;
+        let gameLoop;
+        let snake = [];
+        let food = {};
+        let d = "";
+
+        // 게임 초기화 및 시작
+        function initGame() {
+            snake = [{ x: 10 * box, y: 10 * box }];
+            d = "RIGHT"; // 초기 방향
+            score = 0;
+            scoreElement.innerText = score;
+            gameOverScreen.style.display = "none";
+            spawnFood();
+            
+            if(gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(draw, 120); // 속도 (밀리초)
+        }
+
+        // 먹이 랜덤 생성
+        function spawnFood() {
+            food = {
+                x: Math.floor(Math.random() * (canvasSize / box)) * box,
+                y: Math.floor(Math.random() * (canvasSize / box)) * box
+            };
+        }
+
+        // 키보드 입력 처리
+        document.addEventListener("keydown", (event) => {
+            if(event.key === "ArrowLeft" && d !== "RIGHT") changeDirection("LEFT");
+            else if(event.key === "ArrowUp" && d !== "DOWN") changeDirection("UP");
+            else if(event.key === "ArrowRight" && d !== "LEFT") changeDirection("RIGHT");
+            else if(event.key === "ArrowDown" && d !== "UP") changeDirection("DOWN");
+        });
+
+        // 방향 전환 함수 (모바일 버튼과 공용)
+        function changeDirection(newDirection) {
+            if(newDirection === "LEFT" && d !== "RIGHT") d = "LEFT";
+            if(newDirection === "UP" && d !== "DOWN") d = "UP";
+            if(newDirection === "RIGHT" && d !== "LEFT") d = "RIGHT";
+            if(newDirection === "DOWN" && d !== "UP") d = "DOWN";
+        }
+
+        // 충돌 판정
+        function checkCollision(head, array) {
+            for(let i = 0; i < array.length; i++) {
+                if(head.x === array[i].x && head.y === array[i].y) return true;
+            }
+            return false;
+        }
+
+        // 게임 오버 처리
+        function gameOver() {
+            clearInterval(gameLoop);
+            finalScoreElement.innerText = score;
+            gameOverScreen.style.display = "flex";
+        }
+
+        // 다시 하기 버튼용
+        function resetGame() {
+            initGame();
+        }
+
+        // 메인 그리기 로직
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 뱀 그리기
+            for(let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = (i === 0) ? "#e94560" : "#0f3460"; // 머리와 몸통 색상
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+                ctx.strokeStyle = "#16213e";
+                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            // 먹이 그리기
+            ctx.fillStyle = "#ffcc00"; // 황금색 먹이
+            ctx.beginPath();
+            ctx.arc(food.x + box/2, food.y + box/2, box/2, 0, Math.PI*2);
+            ctx.fill();
+
+            // 현재 머리 위치
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            // 방향 이동
+            if(d === "LEFT") snakeX -= box;
+            if(d === "UP") snakeY -= box;
+            if(d === "RIGHT") snakeX += box;
+            if(d === "DOWN") snakeY += box;
+
+            // 먹이를 먹었을 때
+            if(snakeX === food.x && snakeY === food.y) {
+                score += 10;
+                scoreElement.innerText = score;
+                spawnFood();
+            } else {
+                snake.pop(); // 못 먹었으면 꼬리 자르기
+            }
+
+            let newHead = { x: snakeX, y: snakeY };
+
+            // 벽에 부딪히거나 자기 몸에 부딪히면 종료
+            if(snakeX < 0 || snakeX >= canvasSize || snakeY < 0 || snakeY >= canvasSize || checkCollision(newHead, snake)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(newHead);
+        }
+
+        // 게임 최초 실행
+        initGame();
+    </script>
+</body>
+</html>
